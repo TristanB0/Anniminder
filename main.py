@@ -1,10 +1,10 @@
-from time import timezone
 import discord
 import os
 import sqlite3
 from dotenv import load_dotenv
 from datetime import date
 from datetime import datetime
+from time import timezone
 
 
 load_dotenv()
@@ -31,12 +31,15 @@ class MyClient(discord.Client):
 		if message.author == self.user:
 			return 0
 		
-		# Insert/Modify date into database
+		if message.content.startswith("remove my cake"):
+			cur.execute("DELETE FROM user WHERE id = ?;", (message.author.id,))
+			con.commit()
+
+		# Insert / Modify date into database
 		if message.content.startswith("my cake is"):
 			cur.execute("SELECT * FROM user WHERE id = ?", (message.author.id,))
 			L = [int(i) for i in message.content[11:].split("/")]	# YYYY/MM/DD
-
-			# Add deletion
+			# Add date verification
 
 			if cur.fetchone() is None:
 				cur.execute("INSERT INTO user (id, name, birth) VALUES (?, ?, ?)", (message.author.id, message.author.name, date(L[0], L[1], L[2]).isoformat()))
@@ -53,9 +56,6 @@ class MyClient(discord.Client):
 		
 		# Says happy birthday if it is the correct day
 		if datetime.now(timezone.utc).hour == 10 and datetime.now(timezone.utc).minute == 0:
-			#dd = datetime.now(timezone.utc).strftime("%d")
-			#mm = datetime.now(timezone.utc).strftime("%m")
-			#yyyy = datetime.now(timezone.utc).strftime("%Y")
 			cur.execute("SELECT * FROM user WHERE birth  = ?", (datetime.now(timezone.utc).strptime(message.content[11:], "%Y-%m-%d")))
 			
 			for i in cur.fetchall():
