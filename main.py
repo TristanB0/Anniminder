@@ -4,7 +4,6 @@ import sqlite3
 from dotenv import load_dotenv
 from datetime import date
 from datetime import datetime
-from time import timezone
 
 
 load_dotenv()
@@ -12,10 +11,9 @@ token = os.getenv("TOKEN")
 
 con = sqlite3.connect("users.db3")
 cur = con.cursor()
-#cur.execute("drop table user;")
+cur.execute("drop table user;")
 cur.execute("""CREATE TABLE IF NOT EXISTS user (
 				id INTEGER PRIMARY KEY,
-				name TEXT NOT NULL,
 				birth DATE NOT NULL);""")
 con.commit()
 
@@ -40,9 +38,10 @@ class MyClient(discord.Client):
 			cur.execute("SELECT * FROM user WHERE id = ?", (message.author.id,))
 			L = [int(i) for i in message.content[11:].split("/")]	# YYYY/MM/DD
 			# Add date verification
+			#print("User", self.get_user(message.author.id), "made a request !")
 
 			if cur.fetchone() is None:
-				cur.execute("INSERT INTO user (id, name, birth) VALUES (?, ?, ?)", (message.author.id, message.author.name, date(L[0], L[1], L[2]).isoformat()))
+				cur.execute("INSERT INTO user (id, birth) VALUES (?, ?)", (message.author.id, date(L[0], L[1], L[2]).isoformat()))
 			else:
 				cur.execute("UPDATE user SET birth = ? WHERE id = ?", (date(L[0], L[1], L[2]).isoformat(), message.author.id))
 			
@@ -55,11 +54,11 @@ class MyClient(discord.Client):
 			await client.close()
 		
 		# Says happy birthday if it is the correct day
-		if datetime.now(timezone.utc).hour == 10 and datetime.now(timezone.utc).minute == 0:
-			cur.execute("SELECT * FROM user WHERE birth  = ?", (datetime.now(timezone.utc).strptime(message.content[11:], "%Y-%m-%d")))
+		if datetime.now().hour == 10 and datetime.now().minute == 0:
+			cur.execute("SELECT * FROM user WHERE birth = ?", (datetime.now().strptime(message.content[11:], "%Y-%m-%d")))
 			
 			for i in cur.fetchall():
-				await message.channel.send("{0} is {1} years old".format(i[1], (datetime.now(timezone.utc).date() - datetime.strptime(i[2], "%Y-%m-%d").date()).days / 365))
+				await message.channel.send("{0} is {1} years old".format(discord.get_user(i[0]), (datetime.now().date().year - datetime.strptime(i[2], "%Y-%m-%d").date().year)))
 
 
 intents = discord.Intents.none()
