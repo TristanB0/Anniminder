@@ -11,7 +11,7 @@ token = os.getenv("TOKEN")
 
 con = sqlite3.connect("users.db3")
 cur = con.cursor()
-cur.execute("drop table user;")
+#cur.execute("drop table user;")
 cur.execute("""CREATE TABLE IF NOT EXISTS user (
 				id INTEGER PRIMARY KEY,
 				birth DATE NOT NULL);""")
@@ -46,6 +46,8 @@ class MyClient(discord.Client):
 				cur.execute("UPDATE user SET birth = ? WHERE id = ?", (date(L[0], L[1], L[2]).isoformat(), message.author.id))
 			
 			con.commit()
+
+			await message.reply("Your cake is set to {}".format(date(L[0], L[1], L[2]).strftime("%B %d, %Y")))
 		
 		# Stop bot
 		if message.content.startswith("cakestop") and message.author.id == 220890887054557184:
