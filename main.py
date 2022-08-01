@@ -10,14 +10,19 @@ from dotenv import load_dotenv
 load_dotenv()
 token = os.getenv("TOKEN")
 
-con = sqlite3.connect("users.db3")
+con = sqlite3.connect("database.db3")
 cur = con.cursor()
 #cur.execute("drop table user;")
+#cur.execute("drop table guild;")
 cur.execute("""CREATE TABLE IF NOT EXISTS user (
 				id_user INTEGER,
                 id_guild INTEGER,
 				birth DATE NOT NULL,
                 PRIMARY KEY (id_user, id_guild));""")
+cur.execute("""CREATE TABLE IF NOT EXISTS guild (
+				id_guild INTEGER,
+				id_channel INTEGER,
+				PRIMARY KEY (id_guild));""")
 con.commit()
 
 
@@ -38,17 +43,11 @@ class MyClient(discord.Client):
 
     async def on_disconnect(self):
         print("Disconnected from discord")
-
-    async def on_message(self, message):
-        if message.author == self.user:
-            return 0
-
-        # Stop bot
-        if message.content.startswith("cakestop") and message.author.id == 220890887054557184:
-            con.commit()
-            con.close()
-            await client.close()
-
+	
+    #async def on_message(self, message):
+    #    if message.author == self.user:
+    #        return 0
+	
     async def fetch_birthdays(self):
         """Says happy birthday if it is the correct day"""
         await self.wait_until_ready()
@@ -75,6 +74,14 @@ client = MyClient(intents=intents)
 
 tree = app_commands.CommandTree(client)
 
+@tree.command(name="setup_channel", description="Set the channel for the birthday announcements")
+async def setup_channel(interaction: discord.Interaction, channel: discord.TextChannel):
+	cur.execute("INSERT OR REPLACE INTO guild VALUES (?, ?);", (interaction.guild.id, channel.id))
+	con.commit()
+	await interaction.response.send_message("Channel set to {0}".format(channel.mention))
+	await tree.sync()
+	return 0
+
 
 @tree.command(name="add_birthday", description="Add or edit your birthday")
 async def add_birthday(
@@ -86,14 +93,11 @@ async def add_birthday(
 
     cur.execute("SELECT * FROM user WHERE id_user = ? AND id_guild = ?;", (interaction.user.id, interaction.guild.id))
 
-    if cur.fetchone() is None:
-        cur.execute("INSERT INTO user (id_user, id_guild, birth) VALUES (?, ?, ?);", (interaction.user.id, interaction.guild.id, birth))
-    else:
-        cur.execute("UPDATE user SET birth = ? WHERE id_user = ? AND id_guild = ?;", (birth, interaction.user.id, interaction.guild.id))
+    cur.execute("INSERT OR REPLACE INTO user VALUES (?, ?, ?);", (interaction.user.id, interaction.guild.id, birth))
 
     con.commit()
 
-    await interaction.response.send_message("Your cake is set to {}".format(birth.strftime("%B %d, %Y")), ephemeral=True)
+    await interaction.response.send_message("Your cake is set to {0}".format(birth.strftime("%B %d, %Y")), ephemeral=True)
 
 
 @tree.command(name="remove_birthday", description="Remove your birthday")
@@ -105,10 +109,23 @@ async def remove_birthday(interaction: discord.Interaction):
 
 @tree.command(name="stop", description="Stop the bot")
 async def stop(interaction: discord.Interaction):
-    con.commit()
-    con.close()
-    await interaction.response.send_message("Stopping the bot...", ephemeral=True)
-    await client.close()
+	if interaction.user.id == 220890887054557184:
+		con.commit()
+		con.close()
+		await interaction.response.send_message("Stopping the bot...", ephemeral=True)
+		await client.close()
+	else:
+		await interaction.response.send_message("You are not allowed to stop the bot.", ephemeral=True)
 
+
+@tree.command(name="get_birthday", description="Get another user's birthday")
+async def get_birthday(interaction: discord.Interaction, user: discord.User):
+	cur.execute("SELECT * FROM user WHERE id_user = ? AND id_guild = ?;", (user.id, interaction.guild.id))
+	row = cur.fetchone()
+	if row is None:
+		await interaction.response.send_message("{0} has no birthday set.".format(user.mention), ephemeral=True)
+	else:
+		birth = datetime.strptime(row[2], "%Y-%m-%d")
+		await interaction.response.send_message("{0}'s birthday is {1}".format(user.mention, birth.strftime("%B %d, %Y")), ephemeral=True)
 
 client.run(token)
