@@ -15,14 +15,14 @@ cur = con.cursor()
 #cur.execute("drop table user;")
 #cur.execute("drop table guild;")
 cur.execute("""CREATE TABLE IF NOT EXISTS user (
-				id_user INTEGER,
-                id_guild INTEGER,
+				user_id INTEGER,
+                guild_id INTEGER,
 				birth DATE NOT NULL,
-                PRIMARY KEY (id_user, id_guild));""")
+                PRIMARY KEY (user_id, guild_id));""")
 cur.execute("""CREATE TABLE IF NOT EXISTS guild (
-				id_guild INTEGER,
-				id_channel INTEGER,
-				PRIMARY KEY (id_guild));""")
+				guild_id INTEGER,
+				channel_id INTEGER,
+				PRIMARY KEY (guild_id));""")
 con.commit()
 
 
@@ -43,23 +43,18 @@ class MyClient(discord.Client):
 
     async def on_disconnect(self):
         print("Disconnected from discord")
-	
-    #async def on_message(self, message):
-    #    if message.author == self.user:
-    #        return 0
-	
+
     async def fetch_birthdays(self):
         """Says happy birthday if it is the correct day"""
         await self.wait_until_ready()
         while not self.is_closed():
             todays_date = datetime.now()
-            if todays_date.hour == 21 and todays_date.minute == 31:
+            if todays_date.hour == 10 and todays_date.minute == 00:
                 cur.execute("SELECT * FROM user WHERE STRFTIME('%m-%d', birth) = STRFTIME('%m-%d', 'now');")
-
                 for row in cur.fetchall():
-                    #print(row)
-                    #print("age", todays_date.year - datetime.strptime(row[2], "%Y-%m-%d").year)
-                    channel = self.get_channel(376721858218950665) #self.get_channel(i[1])
+                    curGuild = con.cursor()
+                    curGuild.execute("SELECT channel_id FROM guild WHERE guild_id = ?;", (row[1],))
+                    channel = self.get_channel(curGuild.fetchone()[0])
                     await channel.send("{0} is {1} years old!".format(self.get_user(row[0]).mention, (todays_date.year - datetime.strptime(row[2], "%Y-%m-%d").year)))
 
             await asyncio.sleep(60)
@@ -75,39 +70,42 @@ client = MyClient(intents=intents)
 tree = app_commands.CommandTree(client)
 
 @tree.command(name="setup_channel", description="Set the channel for the birthday announcements")
+@app_commands.checks.has_permissions(administrator=True)
 async def setup_channel(interaction: discord.Interaction, channel: discord.TextChannel):
 	cur.execute("INSERT OR REPLACE INTO guild VALUES (?, ?);", (interaction.guild.id, channel.id))
 	con.commit()
-	await interaction.response.send_message("Channel set to {0}".format(channel.mention))
-	await tree.sync()
+	await interaction.response.send_message("Channel set to {0}.".format(channel.mention), ephemeral=True)
 	return 0
 
 
 @tree.command(name="add_birthday", description="Add or edit your birthday")
 async def add_birthday(
         interaction: discord.Interaction,
-        year: app_commands.Range[int, 1900, datetime.now().date().year - 18],
+        year: app_commands.Range[int, 1900, datetime.now().date().year - 13],
         month: app_commands.Range[int, 1, 12],
         day: app_commands.Range[int, 1, 31]):
     birth = date(year, month, day)
 
-    cur.execute("SELECT * FROM user WHERE id_user = ? AND id_guild = ?;", (interaction.user.id, interaction.guild.id))
-
     cur.execute("INSERT OR REPLACE INTO user VALUES (?, ?, ?);", (interaction.user.id, interaction.guild.id, birth))
+
+    cur.execute("SELECT * FROM guild WHERE guild_id = ?;", (interaction.guild.id,))
+    if cur.fetchone() is None:
+        cur.execute("INSERT INTO guild VALUES (?, ?);", (interaction.guild.id, interaction.channel.id))
 
     con.commit()
 
-    await interaction.response.send_message("Your cake is set to {0}".format(birth.strftime("%B %d, %Y")), ephemeral=True)
+    await interaction.response.send_message("Your cake is set to {0}.".format(birth.strftime("%B %d, %Y")), ephemeral=True)
 
 
 @tree.command(name="remove_birthday", description="Remove your birthday")
 async def remove_birthday(interaction: discord.Interaction):
-    cur.execute("DELETE FROM user WHERE id_user = ? AND id_guild = ?;", (interaction.user.id, interaction.guild.id))
+    cur.execute("DELETE FROM user WHERE user_id = ? AND guild_id = ?;", (interaction.user.id, interaction.guild.id))
     con.commit()
     await interaction.response.send_message("Your birthday has been removed.", ephemeral=True)
 
 
 @tree.command(name="stop", description="Stop the bot")
+@app_commands.checks.has_permissions(administrator=True)
 async def stop(interaction: discord.Interaction):
 	if interaction.user.id == 220890887054557184:
 		con.commit()
@@ -120,12 +118,12 @@ async def stop(interaction: discord.Interaction):
 
 @tree.command(name="get_birthday", description="Get another user's birthday")
 async def get_birthday(interaction: discord.Interaction, user: discord.User):
-	cur.execute("SELECT * FROM user WHERE id_user = ? AND id_guild = ?;", (user.id, interaction.guild.id))
+	cur.execute("SELECT * FROM user WHERE user_id = ? AND guild_id = ?;", (user.id, interaction.guild.id))
 	row = cur.fetchone()
 	if row is None:
 		await interaction.response.send_message("{0} has no birthday set.".format(user.mention), ephemeral=True)
 	else:
 		birth = datetime.strptime(row[2], "%Y-%m-%d")
-		await interaction.response.send_message("{0}'s birthday is {1}".format(user.mention, birth.strftime("%B %d, %Y")), ephemeral=True)
+		await interaction.response.send_message("{0}'s birthday is {1}.".format(user.mention, birth.strftime("%B %d, %Y")), ephemeral=True)
 
 client.run(token)
