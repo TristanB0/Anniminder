@@ -2,6 +2,7 @@ import asyncio
 import os
 import sqlite3
 from datetime import date, datetime
+from random import choice
 
 import discord
 from discord import app_commands
@@ -49,16 +50,24 @@ class MyClient(discord.Client):
         await self.wait_until_ready()
         while not self.is_closed():
             todays_date = datetime.now()
-            if todays_date.hour == 10 and todays_date.minute == 00:
+            if todays_date.hour == 14 and todays_date.minute == 15:
                 cur.execute("SELECT * FROM user WHERE STRFTIME('%m-%d', birth) = STRFTIME('%m-%d', 'now');")
                 for row in cur.fetchall():
                     curGuild = con.cursor()
                     curGuild.execute("SELECT channel_id FROM guild WHERE guild_id = ?;", (row[1],))
                     channel = self.get_channel(curGuild.fetchone()[0])
-                    await channel.send("{0} is {1} years old!".format(self.get_user(row[0]).mention, (todays_date.year - datetime.strptime(row[2], "%Y-%m-%d").year)))
+                    await channel.send(choice(anniversary_messages).format(self.get_user(row[0]).mention, (todays_date.year - datetime.strptime(row[2], "%Y-%m-%d").year)))
 
             await asyncio.sleep(60)
 
+anniversary_messages = [
+    "{0} is {1} years old!",
+    "Have a good day {0}, you are {1} right?",
+    "Congratulations {0} for your {1} birthday!",
+    "Happy birthday {0}! You are {1} years old today!",
+    "Happy {1} birthday {0}!",
+    "Already {1} years old {0}? Time flies!"
+    ]
 
 intents = discord.Intents.none()
 intents.guilds = True
@@ -94,7 +103,7 @@ async def add_birthday(
 
     con.commit()
 
-    await interaction.response.send_message("Your cake is set to {0}.".format(birth.strftime("%B %d, %Y")), ephemeral=True)
+    await interaction.response.send_message("Your birthday is set to {0}.".format(birth.strftime("%B %d, %Y")), ephemeral=True)
 
 
 @tree.command(name="remove_birthday", description="Remove your birthday")
