@@ -111,19 +111,7 @@ async def remove_birthday(interaction: discord.Interaction):
     cur.execute("DELETE FROM user WHERE user_id = ? AND guild_id = ?;", (interaction.user.id, interaction.guild.id))
     con.commit()
     await interaction.response.send_message("Your birthday has been removed.", ephemeral=True)
-
-
-@tree.command(name="stop", description="Stop the bot")
-@app_commands.checks.has_permissions(administrator=True)
-async def stop(interaction: discord.Interaction):
-	if interaction.user.id == 220890887054557184:
-		con.commit()
-		con.close()
-		await interaction.response.send_message("Stopping the bot...", ephemeral=True)
-		await client.close()
-	else:
-		await interaction.response.send_message("You are not allowed to stop the bot.", ephemeral=True)
-
+    
 
 @tree.command(name="get_birthday", description="Get another user's birthday")
 async def get_birthday(interaction: discord.Interaction, user: discord.User):
