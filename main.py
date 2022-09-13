@@ -50,7 +50,7 @@ class MyClient(discord.Client):
         await self.wait_until_ready()
         while not self.is_closed():
             todays_date = datetime.now()
-            if todays_date.hour == 14 and todays_date.minute == 15:
+            if todays_date.hour == 10 and todays_date.minute == 00:
                 cur.execute("SELECT * FROM user WHERE STRFTIME('%m-%d', birth) = STRFTIME('%m-%d', 'now');")
                 for row in cur.fetchall():
                     curGuild = con.cursor()
@@ -111,7 +111,7 @@ async def remove_birthday(interaction: discord.Interaction):
     cur.execute("DELETE FROM user WHERE user_id = ? AND guild_id = ?;", (interaction.user.id, interaction.guild.id))
     con.commit()
     await interaction.response.send_message("Your birthday has been removed.", ephemeral=True)
-    
+
 
 @tree.command(name="get_birthday", description="Get another user's birthday")
 async def get_birthday(interaction: discord.Interaction, user: discord.User):
