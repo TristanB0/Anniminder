@@ -45,12 +45,21 @@ class MyClient(discord.Client):
     async def on_disconnect(self):
         print("Disconnected from discord")
 
+    async def on_member_join(self, member):
+        """Send a message to inform about the presence of the bot"""
+        await member.send("""
+        Hello! \n
+        You joined {0} where I am already in. I am a bot to remind anniversaries of the people who decide to share their birthday. \n
+        All you have to do is to type /add_birthday and follow the instructions. \n
+        I will wish you a happy birthday the right day.
+        """.format(member.guild.name))
+
     async def fetch_birthdays(self):
         """Says happy birthday if it is the correct day"""
         await self.wait_until_ready()
         while not self.is_closed():
             todays_date = datetime.now()
-            if todays_date.hour == 10 and todays_date.minute == 00:
+            if todays_date.hour == 23 and todays_date.minute == 45:
                 cur.execute("SELECT * FROM user WHERE STRFTIME('%m-%d', birth) = STRFTIME('%m-%d', 'now');")
                 for row in cur.fetchall():
                     curGuild = con.cursor()
