@@ -42,6 +42,8 @@ class MyClient(discord.Client):
             self.synced = True
         print("Logged on as {0}".format(self.user))
 
+        await self.change_presence(activity=discord.Game("Type /help"))
+
     async def on_disconnect(self):
         print("Disconnected from discord")
 
@@ -49,8 +51,9 @@ class MyClient(discord.Client):
         """Send a message to inform about the presence of the bot"""
         await member.send("""
         Hello! \n
-        You joined {0} where I am already in. I am a bot to remind anniversaries of the people who decide to share their birthday. \n
+        You joined {0} where I am already in. I am a bot to remind anniversaries of people who decide to share theirs. \n
         All you have to do is to type /add_birthday and follow the instructions. \n
+        You can find more help using /help. \n
         I will wish you a happy birthday the right day.
         """.format(member.guild.name))
 
@@ -86,6 +89,18 @@ intents.message_content = True
 client = MyClient(intents=intents)
 
 tree = app_commands.CommandTree(client)
+
+@tree.command(name="help", description="Get help")
+async def help(interaction: discord.Interaction):
+    await interaction.response.send_message("""
+    /help - Show this message \n
+    /set_channel [channel] - Set the channel where the bot will send the birthday messages \n
+    /add_birthday [YYYY] [MM] [DD] - Add or edit your birthday \n
+    /remove_birthday - Remove your birthday \n
+    /get_birthday [user] - Get another user's birthday \n \n
+    Made by Tristan BONY --> https://www.tristanbony.me
+    """, ephemeral=True)
+    return None
 
 @tree.command(name="setup_channel", description="Set the channel for the birthday announcements")
 @app_commands.checks.has_permissions(administrator=True)
@@ -130,6 +145,6 @@ async def get_birthday(interaction: discord.Interaction, user: discord.User):
 		await interaction.response.send_message("{0} has no birthday set.".format(user.mention), ephemeral=True)
 	else:
 		birth = datetime.strptime(row[2], "%Y-%m-%d")
-		await interaction.response.send_message("{0}'s birthday is {1}.".format(user.mention, birth.strftime("%B %d, %Y")), ephemeral=True)
+		await interaction.response.send_message("{0}'s birthday is on {1}.".format(user.mention, birth.strftime("%B %d, %Y")), ephemeral=True)
 
 client.run(token)
