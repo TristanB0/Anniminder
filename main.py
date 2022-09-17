@@ -1,7 +1,7 @@
 import asyncio
-import os
 import sqlite3
 from datetime import date, datetime
+from os import getenv
 from random import choice
 
 import discord
@@ -9,12 +9,12 @@ from discord import app_commands
 from dotenv import load_dotenv
 
 load_dotenv()
-token = os.getenv("TOKEN")
+token = getenv("TOKEN")
 
 con = sqlite3.connect("database.db3")
 cur = con.cursor()
-#cur.execute("drop table user;")
-#cur.execute("drop table guild;")
+#cur.execute("drop table user;")    # for debugging only
+#cur.execute("drop table guild;")   # same
 cur.execute("""CREATE TABLE IF NOT EXISTS user (
 				user_id INTEGER,
                 guild_id INTEGER,
@@ -42,7 +42,7 @@ class MyClient(discord.Client):
             self.synced = True
         print("Logged on as {0}".format(self.user))
 
-        await self.change_presence(activity=discord.Game("Type /help"))
+        await self.change_presence(activity=discord.Game("to remember... /help"))
 
     async def on_disconnect(self):
         print("Disconnected from discord")
@@ -56,6 +56,11 @@ class MyClient(discord.Client):
         You can find more help using /help. \n
         I will wish you a happy birthday the right day.
         """.format(member.guild.name))
+    
+    async def on_member_remove(self, member):
+        """Remove the user from the database if he leaves the server"""
+        cur.execute("DELETE FROM user WHERE user_id = ? AND guild_id = ?;", (member.id, member.guild.id))
+        con.commit()
 
     async def fetch_birthdays(self):
         """Says happy birthday if it is the correct day"""
