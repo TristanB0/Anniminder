@@ -62,12 +62,18 @@ class MyClient(discord.Client):
         cur.execute("DELETE FROM user WHERE user_id = ? AND guild_id = ?;", (member.id, member.guild.id))
         con.commit()
 
+    async def on_guild_remove(self, guild):
+        """Remove guild's users from the database when the guild is removed or the bot is kicked / banned"""
+        cur.execute("DELETE FROM guild WHERE guild_id = ?;", (guild.id,))
+        cur.execute("DELETE FROM user WHERE guild_id = ?;", (guild.id,))
+        con.commit()
+
     async def fetch_birthdays(self):
         """Says happy birthday if it is the correct day"""
         await self.wait_until_ready()
         while not self.is_closed():
             todays_date = datetime.now()
-            if todays_date.hour == 23 and todays_date.minute == 45:
+            if todays_date.hour == 10 and todays_date.minute == 00:
                 cur.execute("SELECT * FROM user WHERE STRFTIME('%m-%d', birth) = STRFTIME('%m-%d', 'now');")
                 for row in cur.fetchall():
                     curGuild = con.cursor()
@@ -76,6 +82,7 @@ class MyClient(discord.Client):
                     await channel.send(choice(anniversary_messages).format(self.get_user(row[0]).mention, (todays_date.year - datetime.strptime(row[2], "%Y-%m-%d").year)))
 
             await asyncio.sleep(60)
+
 
 anniversary_messages = [
     "{0} is {1} years old!",
