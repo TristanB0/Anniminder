@@ -11,20 +11,23 @@ from dotenv import load_dotenv
 load_dotenv()
 token = getenv("TOKEN")
 
-con = sqlite3.connect("database.db3")
-cur = con.cursor()
-#cur.execute("drop table user;")    # for debugging only
-#cur.execute("drop table guild;")   # same
-cur.execute("""CREATE TABLE IF NOT EXISTS user (
-				user_id INTEGER,
-                guild_id INTEGER,
-				birth DATE NOT NULL,
-                PRIMARY KEY (user_id, guild_id));""")
-cur.execute("""CREATE TABLE IF NOT EXISTS guild (
-				guild_id INTEGER,
-				channel_id INTEGER,
-				PRIMARY KEY (guild_id));""")
-con.commit()
+try:
+    con = sqlite3.connect("database.db3")
+    cur = con.cursor()
+    #cur.execute("drop table user;")
+    #cur.execute("drop table guild;")
+    cur.execute("""CREATE TABLE IF NOT EXISTS user (
+    				user_id INTEGER,
+                    guild_id INTEGER,
+    				birth DATE NOT NULL,
+                    PRIMARY KEY (user_id, guild_id));""")
+    cur.execute("""CREATE TABLE IF NOT EXISTS guild (
+    				guild_id INTEGER,
+    				channel_id INTEGER,
+    				PRIMARY KEY (guild_id));""")
+    con.commit()
+except:
+    print("Error on database initialisation")
 
 
 class MyClient(discord.Client):
@@ -114,6 +117,7 @@ async def help(interaction: discord.Interaction):
     """, ephemeral=True)
     return None
 
+
 @tree.command(name="setup_channel", description="Set the channel for the birthday announcements")
 @app_commands.checks.has_permissions(administrator=True)
 async def setup_channel(interaction: discord.Interaction, channel: discord.TextChannel):
@@ -131,15 +135,19 @@ async def add_birthday(
         day: app_commands.Range[int, 1, 31]):
     birth = date(year, month, day)
 
-    cur.execute("INSERT OR REPLACE INTO user VALUES (?, ?, ?);", (interaction.user.id, interaction.guild.id, birth))
+    try:
+        cur.execute("INSERT OR REPLACE INTO user VALUES (?, ?, ?);", (interaction.user.id, interaction.guild.id, birth))
 
-    cur.execute("SELECT * FROM guild WHERE guild_id = ?;", (interaction.guild.id,))
-    if cur.fetchone() is None:
-        cur.execute("INSERT INTO guild VALUES (?, ?);", (interaction.guild.id, interaction.channel.id))
+        cur.execute("SELECT * FROM guild WHERE guild_id = ?;", (interaction.guild.id,))
+        if cur.fetchone() is None:
+            cur.execute("INSERT INTO guild VALUES (?, ?);", (interaction.guild.id, interaction.channel.id))
 
-    con.commit()
+        con.commit()
 
-    await interaction.response.send_message("Your birthday is set to {0}.".format(birth.strftime("%B %d, %Y")), ephemeral=True)
+        await interaction.response.send_message("Your birthday is set to {0}.".format(birth.strftime("%B %d, %Y")), ephemeral=True)
+    except ValueError:
+        await interaction.response.send_message("Are you sure you entered your birthday correctly? For information, you entered {0}-{1}-{2} (format YYYY-MM-DD).".format(year, month, day), ephemeral=True)
+        con.rollback()
 
 
 @tree.command(name="remove_birthday", description="Remove your birthday")
