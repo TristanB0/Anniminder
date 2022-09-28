@@ -65,6 +65,16 @@ class MyClient(discord.Client):
         cur.execute("DELETE FROM user WHERE user_id = ? AND guild_id = ?;", (member.id, member.guild.id))
         con.commit()
 
+    async def on_guild_join(self, guild):
+        """When the bot join a new server"""
+        channel = self.get_channel(guild.id)
+        await channel.send("""
+        Hello! \n
+        Thank you for adding me to your server. \n
+        For your information, an administrator must configure me by using /setup_channel [the channel you want the messages in] first. \n
+        Don't forget /help to get help. \n
+        """)
+
     async def on_guild_remove(self, guild):
         """Remove guild's users from the database when the guild is removed or the bot is kicked / banned"""
         cur.execute("DELETE FROM guild WHERE guild_id = ?;", (guild.id,))
