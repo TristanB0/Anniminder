@@ -1,5 +1,6 @@
 import asyncio
 import sqlite3
+import sys
 from datetime import date, datetime
 from os import getenv
 from random import choice
@@ -14,8 +15,8 @@ token = getenv("TOKEN")
 try:
     con = sqlite3.connect("database.db3")
     cur = con.cursor()
-    #cur.execute("drop table user;")
-    #cur.execute("drop table guild;")
+    #cur.execute("drop table user;")    # for debugging only
+    #cur.execute("drop table guild;")   # for debugging only
     cur.execute("""CREATE TABLE IF NOT EXISTS user (
     				user_id INTEGER,
                     guild_id INTEGER,
@@ -27,7 +28,7 @@ try:
     				PRIMARY KEY (guild_id));""")
     con.commit()
 except:
-    print("Error on database initialisation")
+    sys.exit("Error on database initialisation")
 
 
 class MyClient(discord.Client):
