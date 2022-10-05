@@ -55,7 +55,7 @@ class MyClient(discord.Client):
         """Send a message to inform about the presence of the bot"""
         await member.send("""
         Hello! \n
-        You joined {0} where I am already in. I am a bot to remind anniversaries of people who decide to share theirs. \n
+        You joined {0} where I am already in. I am a bot to remind birthdays of people who decide to share theirs. \n
         All you have to do is to type /add_birthday and follow the instructions. \n
         You can find more help using /help. \n
         I will wish you a happy birthday the right day.
@@ -93,12 +93,12 @@ class MyClient(discord.Client):
                     curGuild = con.cursor()
                     curGuild.execute("SELECT channel_id FROM guild WHERE guild_id = ?;", (row[1],))
                     channel = self.get_channel(curGuild.fetchone()[0])
-                    await channel.send(choice(anniversary_messages).format(self.get_user(row[0]).mention, (todays_date.year - datetime.strptime(row[2], "%Y-%m-%d").year)))
+                    await channel.send(choice(birthday_messages).format(self.get_user(row[0]).mention, (todays_date.year - datetime.strptime(row[2], "%Y-%m-%d").year)))
 
             await asyncio.sleep(60)
 
 
-anniversary_messages = [
+birthday_messages = [
     "{0} is {1} years old!",
     "Have a good day {0}, you are {1} right?",
     "Congratulations {0} for your {1} birthday!",
