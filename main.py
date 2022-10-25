@@ -1,6 +1,5 @@
 import asyncio
 import sqlite3
-import sys
 from datetime import date, datetime
 from os import getenv
 from random import choice
@@ -12,23 +11,20 @@ from dotenv import load_dotenv
 load_dotenv()
 token = getenv("TOKEN")
 
-try:
-    con = sqlite3.connect("database.db3")
-    cur = con.cursor()
-    #cur.execute("drop table user;")    # for debugging only
-    #cur.execute("drop table guild;")   # for debugging only
-    cur.execute("""CREATE TABLE IF NOT EXISTS user (
-    				user_id INTEGER,
-                    guild_id INTEGER,
-    				birth DATE NOT NULL,
-                    PRIMARY KEY (user_id, guild_id));""")
-    cur.execute("""CREATE TABLE IF NOT EXISTS guild (
-    				guild_id INTEGER,
-    				channel_id INTEGER,
-    				PRIMARY KEY (guild_id));""")
-    con.commit()
-except:
-    sys.exit("Error on database initialisation")
+con = sqlite3.connect("database.db3")
+cur = con.cursor()
+#cur.execute("drop table user;")    # for debugging only
+#cur.execute("drop table guild;")   # for debugging only
+cur.execute("""CREATE TABLE IF NOT EXISTS user (
+   				user_id INTEGER,
+                guild_id INTEGER,
+                birth DATE NOT NULL,
+                PRIMARY KEY (user_id, guild_id));""")
+cur.execute("""CREATE TABLE IF NOT EXISTS guild (
+                guild_id INTEGER,
+                channel_id INTEGER,
+                PRIMARY KEY (guild_id));""")
+con.commit()
 
 
 class MyClient(discord.Client):
@@ -115,6 +111,7 @@ intents.message_content = True
 client = MyClient(intents=intents)
 
 tree = app_commands.CommandTree(client)
+
 
 @tree.command(name="help", description="Get help")
 async def help(interaction: discord.Interaction):
