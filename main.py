@@ -13,10 +13,10 @@ token = getenv("TOKEN")
 
 con = sqlite3.connect("database.db3")
 cur = con.cursor()
-#cur.execute("drop table user;")    # for debugging only
-#cur.execute("drop table guild;")   # for debugging only
+# cur.execute("drop table user;")    # for debugging only
+# cur.execute("drop table guild;")   # for debugging only
 cur.execute("""CREATE TABLE IF NOT EXISTS user (
-   				user_id INTEGER,
+                user_id INTEGER,
                 guild_id INTEGER,
                 birth DATE NOT NULL,
                 PRIMARY KEY (user_id, guild_id));""")
@@ -50,13 +50,13 @@ class MyClient(discord.Client):
     async def on_member_join(self, member):
         """Send a message to inform about the presence of the bot"""
         await member.send("""
-        Hello! \n
-        You joined {0} where I am already in. I am a bot to remind birthdays of people who decide to share theirs. \n
-        All you have to do is to type /add_birthday and follow the instructions. \n
-        You can find more help using /help. \n
-        I will wish you a happy birthday the right day.
+Hello! 
+You joined {0} where I am already in. I am a bot to remind birthdays of people who decide to share theirs. 
+All you have to do is to type /add_birthday and follow the instructions. 
+You can find more help using /help. 
+I will wish you a happy birthday the right day.
         """.format(member.guild.name))
-    
+
     async def on_member_remove(self, member):
         """Remove the user from the database if he leaves the server"""
         cur.execute("DELETE FROM user WHERE user_id = ? AND guild_id = ?;", (member.id, member.guild.id))
@@ -66,10 +66,10 @@ class MyClient(discord.Client):
         """When the bot join a new server"""
         channel = self.get_channel(guild.id)
         await channel.send("""
-        Hello! \n
-        Thank you for adding me to your server. \n
-        For your information, an administrator must configure me by using /setup_channel [the channel you want the messages in] first. \n
-        Don't forget /help to get help. \n
+Hello!
+Thank you for adding me to your server. 
+For your information, an administrator must configure me by using /setup_channel [the channel you want the messages in] first.
+Don't forget /help to get help. 
         """)
 
     async def on_guild_remove(self, guild):
@@ -89,7 +89,8 @@ class MyClient(discord.Client):
                     curGuild = con.cursor()
                     curGuild.execute("SELECT channel_id FROM guild WHERE guild_id = ?;", (row[1],))
                     channel = self.get_channel(curGuild.fetchone()[0])
-                    await channel.send(choice(birthday_messages).format(self.get_user(row[0]).mention, (todays_date.year - datetime.strptime(row[2], "%Y-%m-%d").year)))
+                    await channel.send(choice(birthday_messages).format(self.get_user(row[0]).mention, (
+                                todays_date.year - datetime.strptime(row[2], "%Y-%m-%d").year)))
 
             await asyncio.sleep(60)
 
@@ -101,7 +102,7 @@ birthday_messages = [
     "Happy birthday {0}! You are {1} years old today!",
     "Happy {1} birthday {0}!",
     "Already {1} years old {0}? Time flies!"
-    ]
+]
 
 intents = discord.Intents.none()
 intents.guilds = True
@@ -115,24 +116,25 @@ tree = app_commands.CommandTree(client)
 
 @tree.command(name="help", description="Get help")
 async def help(interaction: discord.Interaction):
-    await interaction.response.send_message("""
-    /help - Show this message \n
-    /set_channel [channel] - Set the channel where the bot will send the birthday messages \n
-    /add_birthday [YYYY] [MM] [DD] - Add or edit your birthday \n
-    /remove_birthday - Remove your birthday \n
-    /get_birthday [user] - Get another user's birthday \n \n
-    Made by Tristan BONY --> https://www.tristanbony.me
+    await interaction.response.send_message(
+        """
+/help - Show this message
+/set_channel [channel] - Set the channel where the bot will send the birthday messages
+/add_birthday [YYYY] [MM] [DD] - Add or edit your birthday
+/remove_birthday - Remove your birthday
+/get_birthday [user] - Get another user's birthday
+    
+Made by Tristan BONY --> https://www.tristanbony.me
     """, ephemeral=True)
-    return None
 
 
 @tree.command(name="setup_channel", description="Set the channel for the birthday announcements")
 @app_commands.checks.has_permissions(administrator=True)
 async def setup_channel(interaction: discord.Interaction, channel: discord.TextChannel):
-	cur.execute("INSERT OR REPLACE INTO guild VALUES (?, ?);", (interaction.guild.id, channel.id))
-	con.commit()
-	await interaction.response.send_message("Channel set to {0}.".format(channel.mention), ephemeral=True)
-	return 0
+    cur.execute("INSERT OR REPLACE INTO guild VALUES (?, ?);", (interaction.guild.id, channel.id))
+    con.commit()
+    await interaction.response.send_message("Channel set to {0}.".format(channel.mention), ephemeral=True)
+    return 0
 
 
 @tree.command(name="add_birthday", description="Add or edit your birthday")
@@ -152,9 +154,12 @@ async def add_birthday(
 
         con.commit()
 
-        await interaction.response.send_message("Your birthday is set to {0}.".format(birth.strftime("%B %d, %Y")), ephemeral=True)
+        await interaction.response.send_message("Your birthday is set to {0}.".format(birth.strftime("%B %d, %Y")),
+                                                ephemeral=True)
     except ValueError:
-        await interaction.response.send_message("Are you sure you entered your birthday correctly? For information, you entered {0}-{1}-{2} (format YYYY-MM-DD).".format(year, month, day), ephemeral=True)
+        await interaction.response.send_message(
+            "Are you sure you entered your birthday correctly? For information, you entered {0}-{1}-{2} (format YYYY-MM-DD).".format(
+                year, month, day), ephemeral=True)
         con.rollback()
 
 
@@ -167,12 +172,14 @@ async def remove_birthday(interaction: discord.Interaction):
 
 @tree.command(name="get_birthday", description="Get another user's birthday")
 async def get_birthday(interaction: discord.Interaction, user: discord.User):
-	cur.execute("SELECT * FROM user WHERE user_id = ? AND guild_id = ?;", (user.id, interaction.guild.id))
-	row = cur.fetchone()
-	if row is None:
-		await interaction.response.send_message("{0} has no birthday set.".format(user.mention), ephemeral=True)
-	else:
-		birth = datetime.strptime(row[2], "%Y-%m-%d")
-		await interaction.response.send_message("{0}'s birthday is on {1}.".format(user.mention, birth.strftime("%B %d, %Y")), ephemeral=True)
+    cur.execute("SELECT * FROM user WHERE user_id = ? AND guild_id = ?;", (user.id, interaction.guild.id))
+    row = cur.fetchone()
+    if row is None:
+        await interaction.response.send_message("{0} has no birthday set.".format(user.mention), ephemeral=True)
+    else:
+        birth = datetime.strptime(row[2], "%Y-%m-%d")
+        await interaction.response.send_message(
+            "{0}'s birthday is on {1}.".format(user.mention, birth.strftime("%B %d, %Y")), ephemeral=True)
+
 
 client.run(token)
