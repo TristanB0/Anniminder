@@ -33,7 +33,7 @@ class MyClient(discord.Client):
         self.synced = False
 
     async def setup_hook(self) -> None:
-        self.bg_task = self.loop.create_task(self.fetch_birthdays())
+        super.bg_task = self.loop.create_task(self.fetch_birthdays())
 
     async def on_ready(self):
         await self.wait_until_ready()
@@ -86,9 +86,9 @@ Don't forget /help to get help.
             if todays_date.hour == 10 and todays_date.minute == 00:
                 cur.execute("SELECT * FROM user WHERE STRFTIME('%m-%d', birth) = STRFTIME('%m-%d', 'now');")
                 for row in cur.fetchall():
-                    curGuild = con.cursor()
-                    curGuild.execute("SELECT channel_id FROM guild WHERE guild_id = ?;", (row[1],))
-                    channel = self.get_channel(curGuild.fetchone()[0])
+                    cur_guild = con.cursor()
+                    cur_guild.execute("SELECT channel_id FROM guild WHERE guild_id = ?;", (row[1],))
+                    channel = self.get_channel(cur_guild.fetchone()[0])
                     await channel.send(choice(birthday_messages).format(self.get_user(row[0]).mention, (
                                 todays_date.year - datetime.strptime(row[2], "%Y-%m-%d").year)))
 
