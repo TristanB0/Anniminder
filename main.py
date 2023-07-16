@@ -3,12 +3,15 @@ import logging
 import sqlite3
 import uuid
 from datetime import date, datetime
-from os import getenv
+from os import getenv, makedirs, path
 from random import choice
 
 import discord
 from discord import app_commands
 from dotenv import load_dotenv
+
+if not path.exists("logs"):
+    makedirs("logs")
 
 load_dotenv()
 token = getenv("DISCORD_TOKEN")
@@ -17,6 +20,7 @@ con = sqlite3.connect("database.db3")
 cur = con.cursor()
 # cur.execute("drop table user;")    # for debugging only
 # cur.execute("drop table guild;")   # for debugging only
+# cur.execute("drop table event;")   # for debugging only
 cur.execute("""CREATE TABLE IF NOT EXISTS user (
                 user_id INTEGER,
                 guild_id INTEGER,
@@ -27,7 +31,7 @@ cur.execute("""CREATE TABLE IF NOT EXISTS guild (
                 channel_id INTEGER,
                 PRIMARY KEY (guild_id));""")
 cur.execute("""CREATE TABLE IF NOT EXISTS event (
-                event_id INTEGER,
+                event_id TEXT,
                 guild_id INTEGER,
                 event_date DATE NOT NULL,
                 event_content TEXT,
@@ -41,8 +45,8 @@ class MyClient(discord.Client):
         self.synced = False
 
     async def setup_hook(self) -> None:
-        super.bg_task = self.loop.create_task(self.fetch_birthdays())
-        super.bg_task = self.loop.create_task(self.new_log())
+        self.bg_task = self.loop.create_task(self.fetch_birthdays())
+        self.bg_task = self.loop.create_task(self.new_log())
 
     async def on_ready(self):
         await self.wait_until_ready()
@@ -92,6 +96,7 @@ Don't forget /help to get help.
         """Remove guild's users from the database when the guild is removed or the bot is kicked / banned"""
         cur.execute("DELETE FROM guild WHERE guild_id = ?;", (guild.id,))
         cur.execute("DELETE FROM user WHERE guild_id = ?;", (guild.id,))
+        cur.execute("DELETE FROM event WHERE guild_id = ?;", (guild.id,))
         con.commit()
 
         logging.log(logging.DEBUG, "Bot removed from {0}".format(guild.id))
@@ -102,7 +107,7 @@ Don't forget /help to get help.
         while not self.is_closed():
             todays_date = datetime.now()
             if todays_date.hour == 10 and todays_date.minute == 00:
-                logging.log(logging.DEBUG, "Function fetch_birthday was programmatically called")
+                logging.log(logging.DEBUG, "Function fetch_birthdays was programmatically called")
 
                 cur.execute("SELECT * FROM user WHERE STRFTIME('%m-%d', birth) = STRFTIME('%m-%d', 'now');")
                 for row in cur.fetchall():
@@ -114,9 +119,26 @@ Don't forget /help to get help.
 
             await asyncio.sleep(60)
     
-    async def new_log():
+    async def fetch_events(self):
+        """Remind of an event if it is the correct day"""
+        await self.wait_until_ready()
+        while not self.is_closed():
+            todays_date = datetime.now()
+            if todays_date.hour == 10 and todays_date.minute == 00:
+                logging.log(logging.DEBUG, "Function fetch_events was programmatically called")
+
+                cur.execute("SELECT * FROM event WHERE STRFTIME('%m-%d', event_date) = STRFTIME('%m-%d', 'now');")
+                for row in cur.fetchall():
+                    cur_guild = con.cursor()
+                    cur_guild.execute("SELECT channel_id FROM guild WHERE guild_id = ?;", (row[1],))
+                    channel = self.get_channel(cur_guild.fetchone()[0])
+                    await channel.send("Reminder! Someone programmed an event for today saying:\n\n{0}".format(row[3]))
+
+            await asyncio.sleep(60)
+    
+    async def new_log(self):
         """Make a new log file"""
-        now = datetime.datetime.now()
+        now = datetime.now()
         handlers = [logging.FileHandler(filename="logs/{0}.log".format(now.strftime("%Y-%m-%d %H:%M:%S")), encoding="utf-8"), logging.StreamHandler()]
         logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s',
                             datefmt="%Y-%m-%d %H:%M:%S", handlers=handlers)
@@ -232,7 +254,7 @@ async def add_event(
     logging.log(logging.DEBUG, "Command add_event was called in server {0} with date {1}-{2}-{3}".format(interaction.guild.id, year, month, day))
 
     event_date = date(year, month, day)
-    event_id = uuid.uuid4()
+    event_id = uuid.uuid4().__str__()
 
     try:
         cur.execute("INSERT OR REPLACE INTO event VALUES (?, ?, ?, ?);", (event_id, interaction.guild.id, event_date, event_content))
