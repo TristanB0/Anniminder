@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import sqlite3
+import uuid
 from datetime import date, datetime
 from os import getenv
 from random import choice
@@ -25,6 +26,12 @@ cur.execute("""CREATE TABLE IF NOT EXISTS guild (
                 guild_id INTEGER,
                 channel_id INTEGER,
                 PRIMARY KEY (guild_id));""")
+cur.execute("""CREATE TABLE IF NOT EXISTS event (
+                event_id INTEGER,
+                guild_id INTEGER,
+                event_date DATE NOT NULL,
+                event_content TEXT,
+                PRIMARY KEY (event_id));""")
 con.commit()
 
 
@@ -75,7 +82,7 @@ I will wish you a happy birthday the right day.
         await channel.send("""
 Hello!
 Thank you for adding me to your server.
-For your information, an administrator must configure me by using /setup_channel [the channel you want the messages in] first.
+For your information, an administrator must configure me by using /setup_channel [the channel you want the messages in] first or by default it will be set in the channel you will use either add_birthday or add_event first.
 Don't forget /help to get help.
         """)
 
@@ -213,6 +220,36 @@ async def get_birthday(interaction: discord.Interaction, user: discord.User):
         birth = datetime.strptime(row[2], "%Y-%m-%d")
         await interaction.response.send_message(
             "{0}'s birthday is on {1}.".format(user.mention, birth.strftime("%B %d, %Y")), ephemeral=True)
+
+
+@tree.command(name="add_event", description="Add an event")
+async def add_event(
+        interaction: discord.Interaction,
+        year: app_commands.Range[int, datetime.now().date().year, 2100],
+        month: app_commands.Range[int, 1, 12],
+        day: app_commands.Range[int, 1, 31],
+        event_content: str):
+    logging.log(logging.DEBUG, "Command add_event was called in server {0} with date {1}-{2}-{3}".format(interaction.guild.id, year, month, day))
+
+    event_date = date(year, month, day)
+    event_id = uuid.uuid4()
+
+    try:
+        cur.execute("INSERT OR REPLACE INTO event VALUES (?, ?, ?, ?);", (event_id, interaction.guild.id, event_date, event_content))
+
+        cur.execute("SELECT * FROM guild WHERE guild_id = ?;", (interaction.guild.id,))
+        if cur.fetchone() is None:
+            cur.execute("INSERT INTO guild VALUES (?, ?);", (interaction.guild.id, interaction.channel.id))
+
+        con.commit()
+
+        await interaction.response.send_message("The event {0} is set to {1}. Keep the ID in case you want to cancel the event later."
+                                                .format(event_id, event_date.strftime("%B %d, %Y")),ephemeral=True)
+    except ValueError:
+        await interaction.response.send_message(
+            "Are you sure you entered the date correctly? For information, you entered {0}-{1}-{2} (format YYYY-MM-DD).".format(
+                year, month, day), ephemeral=True)
+        con.rollback()
 
 
 client.run(token)
