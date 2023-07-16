@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import sqlite3
 from datetime import date, datetime
 from os import getenv
@@ -9,7 +10,7 @@ from discord import app_commands
 from dotenv import load_dotenv
 
 load_dotenv()
-token = getenv("TOKEN")
+token = getenv("DISCORD_TOKEN")
 
 con = sqlite3.connect("database.db3")
 cur = con.cursor()
@@ -34,43 +35,51 @@ class MyClient(discord.Client):
 
     async def setup_hook(self) -> None:
         super.bg_task = self.loop.create_task(self.fetch_birthdays())
+        super.bg_task = self.loop.create_task(self.new_log())
 
     async def on_ready(self):
         await self.wait_until_ready()
         if not self.synced:
             await tree.sync()
             self.synced = True
-        print("Logged on as {0}".format(self.user))
+        
+        logging.log(logging.INFO, "Logged on as {0}".format(self.user))
 
         await self.change_presence(activity=discord.Game("to remember... /help"))
 
     async def on_disconnect(self):
-        print("Disconnected from discord")
+        logging.log(logging.WARNING, "Disconnected from discord")
 
     async def on_member_join(self, member):
         """Send a message to inform about the presence of the bot"""
         await member.send("""
 Hello! 
-You joined {0} where I am already in. I am a bot to remind birthdays of people who decide to share theirs. 
-All you have to do is to type /add_birthday and follow the instructions. 
-You can find more help using /help. 
+You joined {0} where I am already in. I am a bot to remind birthdays of people who decide to share theirs.
+All you have to do is to type /add_birthday and follow the instructions.
+You can find more help using /help.
 I will wish you a happy birthday the right day.
         """.format(member.guild.name))
+
+        logging.log(logging.DEBUG, "User {0} joined {1}".format(member.id, member.guild.id))
 
     async def on_member_remove(self, member):
         """Remove the user from the database if he leaves the server"""
         cur.execute("DELETE FROM user WHERE user_id = ? AND guild_id = ?;", (member.id, member.guild.id))
         con.commit()
 
+        logging.log(logging.DEBUG, "User {0} left {1}".format(member.id, member.guild.id))
+
     async def on_guild_join(self, guild):
         """When the bot join a new server"""
         channel = self.get_channel(guild.id)
         await channel.send("""
 Hello!
-Thank you for adding me to your server. 
+Thank you for adding me to your server.
 For your information, an administrator must configure me by using /setup_channel [the channel you want the messages in] first.
-Don't forget /help to get help. 
+Don't forget /help to get help.
         """)
+
+        logging.log(logging.DEBUG, "Bot added to {0}".format(guild.id))
 
     async def on_guild_remove(self, guild):
         """Remove guild's users from the database when the guild is removed or the bot is kicked / banned"""
@@ -78,12 +87,16 @@ Don't forget /help to get help.
         cur.execute("DELETE FROM user WHERE guild_id = ?;", (guild.id,))
         con.commit()
 
+        logging.log(logging.DEBUG, "Bot removed from {0}".format(guild.id))
+
     async def fetch_birthdays(self):
         """Says happy birthday if it is the correct day"""
         await self.wait_until_ready()
         while not self.is_closed():
             todays_date = datetime.now()
             if todays_date.hour == 10 and todays_date.minute == 00:
+                logging.log(logging.DEBUG, "Function fetch_birthday was programmatically called")
+
                 cur.execute("SELECT * FROM user WHERE STRFTIME('%m-%d', birth) = STRFTIME('%m-%d', 'now');")
                 for row in cur.fetchall():
                     cur_guild = con.cursor()
@@ -93,6 +106,17 @@ Don't forget /help to get help.
                                 todays_date.year - datetime.strptime(row[2], "%Y-%m-%d").year)))
 
             await asyncio.sleep(60)
+    
+    async def new_log():
+        """Make a new log file"""
+        now = datetime.datetime.now()
+        handlers = [logging.FileHandler(filename="logs/{0}.log".format(now.strftime("%Y-%m-%d %H:%M:%S")), encoding="utf-8"), logging.StreamHandler()]
+        logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s',
+                            datefmt="%Y-%m-%d %H:%M:%S", handlers=handlers)
+        
+        logging.log(logging.DEBUG, "Created a new log file")
+
+        await asyncio.sleep(86400)  # Wait a day
 
 
 birthday_messages = [
@@ -133,8 +157,10 @@ Made by Tristan BONY --> https://www.tristanbony.me
 async def setup_channel(interaction: discord.Interaction, channel: discord.TextChannel):
     cur.execute("INSERT OR REPLACE INTO guild VALUES (?, ?);", (interaction.guild.id, channel.id))
     con.commit()
+    
+    logging.log(logging.DEBUG, "Guild {0} setted up a channel".format(interaction.guild.id))
+
     await interaction.response.send_message("Channel set to {0}.".format(channel.mention), ephemeral=True)
-    return 0
 
 
 @tree.command(name="add_birthday", description="Add or edit your birthday")
@@ -145,6 +171,8 @@ async def add_birthday(
         day: app_commands.Range[int, 1, 31]):
     birth = date(year, month, day)
 
+    logging.log(logging.DEBUG, "Command add_birthday was called with value {0}-{1}-{2}".format(year, month, day))
+    
     try:
         cur.execute("INSERT OR REPLACE INTO user VALUES (?, ?, ?);", (interaction.user.id, interaction.guild.id, birth))
 
@@ -161,17 +189,22 @@ async def add_birthday(
             "Are you sure you entered your birthday correctly? For information, you entered {0}-{1}-{2} (format YYYY-MM-DD).".format(
                 year, month, day), ephemeral=True)
         con.rollback()
-
+    
 
 @tree.command(name="remove_birthday", description="Remove your birthday")
 async def remove_birthday(interaction: discord.Interaction):
     cur.execute("DELETE FROM user WHERE user_id = ? AND guild_id = ?;", (interaction.user.id, interaction.guild.id))
     con.commit()
+
+    logging.log(logging.DEBUG, "Command remove_birthday was called")
+    
     await interaction.response.send_message("Your birthday has been removed.", ephemeral=True)
 
 
 @tree.command(name="get_birthday", description="Get another user's birthday")
 async def get_birthday(interaction: discord.Interaction, user: discord.User):
+    logging.log(logging.DEBUG, "Command get_birthday was called in server {0} to get {1}".format(interaction.guild.id, user.id))
+    
     cur.execute("SELECT * FROM user WHERE user_id = ? AND guild_id = ?;", (user.id, interaction.guild.id))
     row = cur.fetchone()
     if row is None:
