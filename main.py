@@ -139,7 +139,8 @@ Don't forget /help to get help.
     async def new_log(self):
         """Make a new log file"""
         now = datetime.now()
-        handlers = [logging.FileHandler(filename="logs/{0}.log".format(now.strftime("%Y-%m-%d %H:%M:%S")), encoding="utf-8"), logging.StreamHandler()]
+        handlers = [logging.FileHandler(filename="logs/{0}.log".format(now.strftime("%Y-%m-%d %H:%M:%S")),
+                                        encoding="utf-8"), logging.StreamHandler()]
         logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s',
                             datefmt="%Y-%m-%d %H:%M:%S", handlers=handlers)
         
@@ -215,8 +216,8 @@ async def add_birthday(
                                                 ephemeral=True)
     except ValueError:
         await interaction.response.send_message(
-            "Are you sure you entered your birthday correctly? For information, you entered {0}-{1}-{2} (format YYYY-MM-DD).".format(
-                year, month, day), ephemeral=True)
+            "Are you sure you entered your birthday correctly? For information, you entered {0}-{1}-{2} (format YYYY-MM-DD)."
+            .format(year, month, day), ephemeral=True)
         con.rollback()
     
 
@@ -232,7 +233,8 @@ async def remove_birthday(interaction: discord.Interaction):
 
 @tree.command(name="get_birthday", description="Get another user's birthday")
 async def get_birthday(interaction: discord.Interaction, user: discord.User):
-    logging.log(logging.DEBUG, "Command get_birthday was called in server {0} to get {1}".format(interaction.guild.id, user.id))
+    logging.log(logging.DEBUG, "Command get_birthday was called in server {0} to get {1}"
+                .format(interaction.guild.id, user.id))
     
     cur.execute("SELECT * FROM user WHERE user_id = ? AND guild_id = ?;", (user.id, interaction.guild.id))
     row = cur.fetchone()
@@ -251,7 +253,8 @@ async def add_event(
         month: app_commands.Range[int, 1, 12],
         day: app_commands.Range[int, 1, 31],
         event_content: str):
-    logging.log(logging.DEBUG, "Command add_event was called in server {0} with date {1}-{2}-{3}".format(interaction.guild.id, year, month, day))
+    logging.log(logging.DEBUG, "Command add_event was called in server {0} with date {1}-{2}-{3}"
+                .format(interaction.guild.id, year, month, day))
 
     event_date = date(year, month, day)
     event_id = uuid.uuid4().__str__()
@@ -265,12 +268,13 @@ async def add_event(
 
         con.commit()
 
-        await interaction.response.send_message("The event {0} is set to {1}. Keep the ID in case you want to cancel the event later."
-                                                .format(event_id, event_date.strftime("%B %d, %Y")),ephemeral=True)
+        await interaction.response.send_message(
+            "The event {0} is set to {1}. Keep the ID in case you want to cancel the event later."
+            .format(event_id, event_date.strftime("%B %d, %Y")),ephemeral=True)
     except ValueError:
         await interaction.response.send_message(
-            "Are you sure you entered the date correctly? For information, you entered {0}-{1}-{2} (format YYYY-MM-DD).".format(
-                year, month, day), ephemeral=True)
+            "Are you sure you entered the date correctly? For information, you entered {0}-{1}-{2} (format YYYY-MM-DD)."
+            .format(year, month, day), ephemeral=True)
         con.rollback()
 
 
