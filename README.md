@@ -1,6 +1,6 @@
 # Anniminder
 
-**Anniminder** is an open-source Discord Bot written in Python to remind people about their friends' birthdays. It uses SQLite to store the dates of users .
+**Anniminder** is an open-source Discord Bot written in Python to remind people about their friends' birthdays. It uses SQLite to store the dates of users.
 
 
 ## Features
@@ -16,6 +16,9 @@ This is a personal project made to train myself using Python and APIs.
 
 Do not hesitate to contribute with your ideas!
 
+It is intended to run on Python 3.11.3, and you will need to install the following packages:
+- discord
+- dotenv
 
 ## License 
 
